@@ -1,28 +1,24 @@
 #!/usr/bin/env python3
-import os
-
-import aws_cdk as cdk
-
-from api_consumer.api_consumer_stack import ApiConsumerStack
+import aws_cdk
+from api_consumer.json_randomuser_consume import RandomUserConsumerStack
+from api_consumer.json_placeholder_consume import JsonPlaceHolderConsumerStack
 
 
-app = cdk.App()
-ApiConsumerStack(app, "ApiConsumerStack",
-    # If you don't specify 'env', this stack will be environment-agnostic.
-    # Account/Region-dependent features and context lookups will not work,
-    # but a single synthesized template can be deployed anywhere.
+app = aws_cdk.App()
 
-    # Uncomment the next line to specialize this stack for the AWS Account
-    # and Region that are implied by the current CLI configuration.
+# get deploy context
+config = app.node.try_get_context('config')
 
-    #env=cdk.Environment(account=os.getenv('CDK_DEFAULT_ACCOUNT'), region=os.getenv('CDK_DEFAULT_REGION')),
+if not config:
+    raise RuntimeError('Context var missing')
 
-    # Uncomment the next line if you know exactly what Account and Region you
-    # want to deploy the stack to. */
+# get deploy props
+props = app.node.try_get_context(config)
 
-    #env=cdk.Environment(account='123456789012', region='us-east-1'),
+if not props:
+    raise RuntimeError('Configuration not found')
 
-    # For more information, see https://docs.aws.amazon.com/cdk/latest/guide/environments.html
-    )
-
+# inyect props and create stack
+JsonPlaceHolderConsumerStack(app, "JsonPlaceholderStack", **props)
+RandomUserConsumerStack(app, "RandomUserStack", **props)
 app.synth()

@@ -93,6 +93,20 @@
     "@aws-cdk/s3-notifications:addS3TrustKeyPolicyForSnsSubscriptions": true,
     "@aws-cdk/aws-ec2:requirePrivateSubnetsForEgressOnlyInternetGateway": true,
     "@aws-cdk/aws-s3:publicAccessBlockedByDefault": true,
-    "@aws-cdk/aws-lambda:useCdkManagedLogGroup": true
+    "@aws-cdk/aws-lambda:useCdkManagedLogGroup": true,
+    
+    "wrangler_layer": "arn:aws:lambda:us-east-2:336392948345:layer:AWSSDKPandas-Python311:10", 
+    "dev": {
+      "env": {
+        "account": "520218705059",
+        "region": "us-east-2"
+      }
+    },
+    "prod": {
+      "env": {
+        "account": "520218705059",
+        "region": "us-east-2"
+      }
+    }
   }
 }

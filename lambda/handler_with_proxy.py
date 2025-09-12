@@ -4,6 +4,7 @@ from json import loads
 from boto3 import client
 from pandas import json_normalize
 from datetime import datetime, timezone
+from constants import RAMDON_USER_SCHEMA
 from urllib.request import build_opener, ProxyHandler
 
 def consume_api(event, context):
@@ -45,7 +46,7 @@ def consume_api(event, context):
             # read data
             content = loads(content.decode("utf-8"))
             df = json_normalize(content["results"], sep="_")
-            df['location_postcode'] = df['location_postcode'].astype(str)
+            df = df.astype(RAMDON_USER_SCHEMA)
             # put on s3
             s3 = client("s3")
             s3.put_object(
