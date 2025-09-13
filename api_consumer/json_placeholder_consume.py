@@ -56,6 +56,48 @@ class JsonPlaceHolderConsumerStack(Stack):
             database_input=glue.CfnDatabase.DatabaseInputProperty(name=glue_db_name),
         )
 
+        # create glue table
+        glue.CfnTable(
+            self,
+            "RandomUserGlueTable",
+            catalog_id=Stack.of(self).account,
+            database_name=glue_db_name,  # "random_user_db"
+            table_input=glue.CfnTable.TableInputProperty(
+                name="api_consumer_jsonplaceholder",
+                table_type="EXTERNAL_TABLE",
+                parameters={"classification": "json"},
+                partition_keys=[
+                    glue.CfnTable.ColumnProperty(name="partition_0", type="string"),
+                    glue.CfnTable.ColumnProperty(name="partition_1", type="string"),
+                    glue.CfnTable.ColumnProperty(name="partition_2", type="string"),
+                ],
+                storage_descriptor=glue.CfnTable.StorageDescriptorProperty(
+                    location=f"s3://{results_bucket.bucket_name}/jsonplaceholder/",
+                    input_format="org.apache.hadoop.mapred.TextInputFormat",
+                    output_format="org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
+                    serde_info=glue.CfnTable.SerdeInfoProperty(
+                        serialization_library="org.openx.data.jsonserde.JsonSerDe"
+                    ),
+                    columns=[
+                        glue.CfnTable.ColumnProperty(name="name", type="string"),
+                        glue.CfnTable.ColumnProperty(name="username", type="string"),
+                        glue.CfnTable.ColumnProperty(name="email", type="string"),
+                        glue.CfnTable.ColumnProperty(name="phone", type="string"),
+                        glue.CfnTable.ColumnProperty(name="website", type="string"),
+                        glue.CfnTable.ColumnProperty(name="address_street", type="string"),
+                        glue.CfnTable.ColumnProperty(name="address_suite", type="string"),
+                        glue.CfnTable.ColumnProperty(name="address_city", type="string"),
+                        glue.CfnTable.ColumnProperty(name="address_zipcode", type="string"),
+                        glue.CfnTable.ColumnProperty(name="address_geo_lat", type="double"),
+                        glue.CfnTable.ColumnProperty(name="address_geo_lng", type="double"),
+                        glue.CfnTable.ColumnProperty(name="company_name", type="string"),
+                        glue.CfnTable.ColumnProperty(name="company_catchphrase", type="string"),
+                        glue.CfnTable.ColumnProperty(name="company_bs", type="string")
+                    ]
+                ),
+            ),
+        )
+
         # Allow glue to read S3 data
         glue_role = aws_iam.Role(
             self,
@@ -86,7 +128,6 @@ class JsonPlaceHolderConsumerStack(Stack):
             ),
         )
         crawler.add_dependency(glue_db)
-
 
         # Register S3 location in lake formation
         lf.CfnResource(
@@ -155,7 +196,7 @@ class JsonPlaceHolderConsumerStack(Stack):
             permissions=["DESCRIBE"],
         )
 
-        # allow athena to call all columns in table 
+        # allow athena role to DESCRIBE the specific table (required for UI listing)
         lf.CfnPermissions(
             self,
             "LfPermsTablesAthenaSelectAll",
@@ -169,8 +210,35 @@ class JsonPlaceHolderConsumerStack(Stack):
                     table_wildcard={},
                 )
             ),
-            permissions=["SELECT", "DESCRIBE"],
+            permissions=["DESCRIBE"],
         )
+
+        # Grant column-level SELECT permissions to Athena on specific columns
+        lf.CfnPermissions(
+            self,
+            "LfPermsAthenaSelectRandomUserColumns",
+            data_lake_principal=lf.CfnPermissions.DataLakePrincipalProperty(
+                data_lake_principal_identifier=athena_role.role_arn
+            ),
+            resource=lf.CfnPermissions.ResourceProperty(
+                table_with_columns_resource=lf.CfnPermissions.TableWithColumnsResourceProperty(
+                    catalog_id=Stack.of(self).account,
+                    database_name=glue_db_name,
+                    name="api_consumer_jsonplaceholder",
+                    column_wildcard=lf.CfnPermissions.ColumnWildcardProperty(
+                        excluded_column_names=[
+                            "name",
+                            "username",
+                            "email",
+                            "phone",
+                            "website"
+                        ]
+                    )
+                )
+            ),
+            permissions=["SELECT"],
+        )
+
         athena_results_bucket = s3.Bucket(self, "JsonPlaceholderAthenaResultsBucket")
 
         # Allow the Athena role to read/write query results

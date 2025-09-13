@@ -5,6 +5,7 @@ from boto3 import client
 from pandas import json_normalize
 from urllib.request import urlopen
 from datetime import datetime, timezone
+from constants import JSON_PLACEHOLDER_SCHEMA
 
 def consume_api(event, context):
     # validate env variables
@@ -33,7 +34,8 @@ def consume_api(event, context):
             # read data 
             obj = loads(content.decode("utf-8"))
             df = json_normalize(obj, sep="_")
-
+            df = df.astype(JSON_PLACEHOLDER_SCHEMA)
+            # put on s3
             # put on s3
             s3 = client("s3")
             s3.put_object(

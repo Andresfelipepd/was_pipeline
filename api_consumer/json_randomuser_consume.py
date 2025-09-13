@@ -64,7 +64,8 @@ class RandomUserConsumerStack(Stack):
             catalog_id=Stack.of(self).account,
             database_input=glue.CfnDatabase.DatabaseInputProperty(name=glue_db_name),
         )
-
+        
+        # create glue table
         glue.CfnTable(
             self,
             "RandomUserGlueTable",
@@ -95,7 +96,7 @@ class RandomUserConsumerStack(Stack):
                         glue.CfnTable.ColumnProperty(name="name_title", type="string"),
                         glue.CfnTable.ColumnProperty(name="name_first", type="string"),
                         glue.CfnTable.ColumnProperty(name="name_last", type="string"),
-                        glue.CfnTable.ColumnProperty(name="location_street_number", type="smallint"),
+                        glue.CfnTable.ColumnProperty(name="location_street_number", type="string"),
                         glue.CfnTable.ColumnProperty(name="location_street_name", type="string"),
                         glue.CfnTable.ColumnProperty(name="location_city", type="string"),
                         glue.CfnTable.ColumnProperty(name="location_state", type="string"),
@@ -206,6 +207,7 @@ class RandomUserConsumerStack(Stack):
                 aws_iam.ManagedPolicy.from_aws_managed_policy_name("AmazonAthenaFullAccess"),
             ],
         )
+
         # Give S3 read permissions for query outputs and data (read-only)
         results_bucket.grant_read(athena_role)
     
@@ -256,18 +258,28 @@ class RandomUserConsumerStack(Stack):
                     name="api_consumer_randomuser",
                     column_wildcard=lf.CfnPermissions.ColumnWildcardProperty(
                         excluded_column_names=[
-                            # EXCLUIR sensibles ->
-                            "login_password", "login_md5", "login_sha1", "login_sha256",
-                            "id_value",  # identidades
-                            "picture_large", "picture_medium", "picture_thumbnail"  # PII/URLs
+                            "email",
+                            "phone",
+                            "cell",
+                            "nat",
+                            "name_title",
+                            "name_first",
+                            "name_last",
+                            "login_uuid",
+                            "login_username",
+                            "login_password",
+                            "login_salt",
+                            "login_md5",
+                            "login_sha1",
+                            "login_sha256",
+                            "id_name",
+                            "id_value"
                         ]
                     )
                 )
             ),
             permissions=["SELECT"],
         )
-
-        
         athena_results_bucket = s3.Bucket(self, "RandomUserAthenaResultsBucket")
 
         # Allow the Athena role to read/write query results

@@ -1,58 +1,77 @@
 
-# Welcome to your CDK Python project!
+# Data Ingestion & Analytics on AWS (CDK Python)
 
-This is a blank project for CDK development with Python.
+A production‑ready reference that ingests data from public APIs with AWS Lambda, stores results in Amazon S3 as Parquet (Snappy), catalogs datasets with AWS Glue, governs access with Lake Formation, and enables analytics with Amazon Athena. It includes scheduled triggers, a Secrets Manager proxy, and opinionated defaults.
 
-The `cdk.json` file tells the CDK Toolkit how to execute your app.
+Note: This repository contains a base stack (`aws_test`) and, in a related project, the primary data ingestion stack (`api_consumer`). This README documents the full solution and how to deploy it.
 
-This project is set up like a standard Python project.  The initialization
-process also creates a virtualenv within this project, stored under the `.venv`
-directory.  To create the virtualenv it assumes that there is a `python3`
-(or `python` for Windows) executable in your path with access to the `venv`
-package. If for any reason the automatic creation of the virtualenv fails,
-you can create the virtualenv manually.
+## Architecture
+- Lambda functions (Python 3.11):
+  - `HttpConsumerRandomUserFunction`: consumes `randomuser.me`, writes to S3 under `randomuser/` as Parquet (Snappy).
+  - `HttpConsumerJSONPlaceholderFunction`: consumes `jsonplaceholder.typicode.com`, writes to S3 under `jsonplaceholder/` as Parquet (Snappy).
+  - Parquet conversion via `pyarrow`/`pandas` using the AWS SDK for pandas (awswrangler) layer.
+- Secrets Manager: optional `PROXY_URL` secret to route outbound traffic via proxy.
+- Amazon S3:
+  - `ApiConsumerResultsBucket`: curated data (Parquet).
+  - `ApiConsumerAthenaResultsBucket`: Athena query results.
+- Amazon EventBridge: scheduled rules to invoke Lambdas periodically.
+- AWS Glue:
+  - Database `api_consumer_db`.
+  - Crawler discovers schema and creates/updates tables with prefix `api_consumer_`.
+- AWS Lake Formation: data location, database, table, and column‑level permissions for Glue and Athena.
+- Amazon Athena: WorkGroup `ApiConsumerWG` writes results to S3 and includes a sample query.
 
-To manually create a virtualenv on MacOS and Linux:
+## Prerequisites
+- Python 3.11 and pip
+- AWS CDK v2 (CLI) with configured AWS credentials
+- CDK bootstrap in your account/region (`cdk bootstrap`)
 
-```
-$ python3 -m venv .venv
-```
+## Quick Start
+1) Create and activate a virtualenv
+- `python3 -m venv .venv && source .venv/bin/activate`
+2) Install dependencies
+- `pip install -r requirements.txt`
+3) Deploy
+- `cdk deploy -c config=dev --all`
 
-After the init process completes and the virtualenv is created, you can use the following
-step to activate your virtualenv.
+If you work with the `api_consumer` project in a separate directory, `cd` into that folder and run `cdk deploy` there to provision the full ingestion and analytics stack.
 
-```
-$ source .venv/bin/activate
-```
+## Configuration (Layers & Secrets)
+- Lambdas write Parquet (Snappy) to S3 and use the AWS SDK for pandas layer. The stack attaches the layer automatically for the target region. If AWS releases a newer version, update the layer ARN in the stack.
+- Optional proxy: if you create a `PROXY_URL` secret in Secrets Manager (either plain string or JSON with `PROXY_URL`/`proxy_url`), the proxy‑enabled function will use it automatically.
 
-If you are a Windows platform, you would activate the virtualenv like this:
+## Glue & Lake Formation
+- Glue Database: `api_consumer_db`.
+- Glue Crawler: targets `s3://<ApiConsumerResultsBucket>/randomuser/` and `.../jsonplaceholder/`, scheduled daily at 01:00 UTC.
+- Lake Formation grants:
+  - Crawler role: Data Location access + CREATE_TABLE/ALTER/DROP/DESCRIBE on the database.
+  - Athena role: DESCRIBE on the database and SELECT/DESCRIBE on tables, with example column‑level restrictions for sensitive fields.
 
-```
-% .venv\Scripts\activate.bat
-```
+## Athena
+- WorkGroup: `ApiConsumerWG` with results written to `s3://<ApiConsumerAthenaResultsBucket>/results/` (SSE‑S3).
+- After the crawler runs, select database `api_consumer_db` and query your tables in Athena.
 
-Once the virtualenv is activated, you can install the required dependencies.
+## Operations & Testing
+- Invoke Lambdas (console or CLI) for ad‑hoc runs.
+- Parquet files are partitioned by date: `yyyy/mm/dd/HHMMSS-<uuid>.parquet`.
+- Run the Glue Crawler manually if you need to refresh the schema immediately.
+- Query via Athena using the `ApiConsumerWG` workgroup.
 
-```
-$ pip install -r requirements.txt
-```
+## Troubleshooting
+- Missing PyArrow: ensure the awswrangler layer is attached; the stack adds it automatically per region.
+- Mixed types (ArrowInvalid): the code normalizes and casts to string to avoid schema conflicts; if you need strict typing, define a schema and cast accordingly.
+- HTTP 403 from endpoints: add a realistic User‑Agent/headers or use the `PROXY_URL` secret.
 
-At this point you can now synthesize the CloudFormation template for this code.
+## Useful CDK Commands
+- `cdk ls` — list all stacks in the app
+- `cdk synth` — emit the synthesized CloudFormation template
+- `cdk deploy` — deploy to your default AWS account/region
+- `cdk diff` — compare deployed stack with current state
 
-```
-$ cdk synth
-```
+## Security
+- Secrets are read from Secrets Manager and never logged.
+- Lake Formation governs access at database, table, and column level.
+- Adjust IAM policies and column exclusions to meet your compliance needs.
 
-To add additional dependencies, for example other CDK libraries, just add
-them to your `setup.py` file and rerun the `pip install -r requirements.txt`
-command.
-
-## Useful commands
-
- * `cdk ls`          list all stacks in the app
- * `cdk synth`       emits the synthesized CloudFormation template
- * `cdk deploy`      deploy this stack to your default AWS account/region
- * `cdk diff`        compare deployed stack with current state
- * `cdk docs`        open CDK documentation
-
-Enjoy!
+—
+Suggestions or improvements are welcome. Open an issue or contact the project owner.

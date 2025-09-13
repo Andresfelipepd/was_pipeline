@@ -1,4 +1,4 @@
-RAMDON_USER_SCHEMA = schema = {
+RAMDON_USER_SCHEMA = {
     "gender": "string",
     "email": "string",
     "phone": "string",
@@ -7,7 +7,7 @@ RAMDON_USER_SCHEMA = schema = {
     "name_title": "string",
     "name_first": "string",
     "name_last": "string",
-    "location_street_number": "Int16",
+    "location_street_number": "string",
     "location_street_name": "string",
     "location_city": "string",
     "location_state": "string",
@@ -33,4 +33,21 @@ RAMDON_USER_SCHEMA = schema = {
     "picture_large": "string",
     "picture_medium": "string",
     "picture_thumbnail": "string"
+}
+
+JSON_PLACEHOLDER_SCHEMA = {
+    "name": "string",
+    "username": "string",
+    "email": "string",
+    "phone": "string",
+    "website": "string",
+    "address_street": "string",
+    "address_suite": "string",
+    "address_city": "string",
+    "address_zipcode": "string",
+    "address_geo_lat": "float32",
+    "address_geo_lng": "float32",
+    "company_name": "string",
+    "company_catchphrase": "string",
+    "company_bs": "string"
 }
