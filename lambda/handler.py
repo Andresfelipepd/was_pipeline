@@ -34,6 +34,7 @@ def consume_api(event, context):
             # read data 
             obj = loads(content.decode("utf-8"))
             df = json_normalize(obj, sep="_")
+            df.columns = [x.lower() for x in df.columns]
             df = df.astype(JSON_PLACEHOLDER_SCHEMA)
             # put on s3
             # put on s3
